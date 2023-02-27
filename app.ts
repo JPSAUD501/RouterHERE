@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import axios from 'axios'
 import config from './config'
+import fs from 'fs'
 
 const hereRouteResponse = z.object({
   routes: z.array(
@@ -101,9 +102,10 @@ async function getRoute (originCity: string, destinationCity: string): Promise<{
 
 async function start (): Promise<void> {
   // console.log('Starting app...')
-  const destinationCity = 'Osasco'
-  const originCities = [
+  const originCity = 'Osasco'
+  const destinationCities = [
     // 'ADAMANTINA',
+
     'ALVARES MACHADO',
     'AMERICANA',
     'ANDRADINA',
@@ -161,6 +163,7 @@ async function start (): Promise<void> {
     'JANDIRA',
 
     // 'JAU',
+
     'JOSE BONIFACIO',
     'JUNDIAI',
     'JUNQUEIROPOLIS',
@@ -181,6 +184,7 @@ async function start (): Promise<void> {
     // 'NOVO HORIZONTE',
 
     // 'OLIMPIA',
+
     'OSASCO',
     'OSVALDO CRUZ',
     'OURINHOS',
@@ -231,10 +235,26 @@ async function start (): Promise<void> {
     'VINHEDO',
     'VIRADOURO',
     'VOTUPORANGA']
-  for (const originCity of originCities) {
+
+  const resultado: Array<{
+    origem: string
+    destino: string
+    distanciaEmKm: number
+    tempoEmMinutos: number
+  }> = []
+
+  for (const destinationCity of destinationCities) {
     const route = await getRoute(originCity, destinationCity)
     console.log(`Origem: ${originCity} - Destino: ${destinationCity} - Distancia em KM: ${route.length / 100 ?? 'Não encontrado'} - Tempo em minutos: ${route.duration / 60 ?? 'Não encontrado'}`)
+    resultado.push({
+      origem: originCity,
+      destino: destinationCity,
+      distanciaEmKm: route.length / 100,
+      tempoEmMinutos: route.duration / 60
+    })
   }
+
+  fs.writeFileSync('resultado.json', JSON.stringify(resultado, null, 2))
 }
 
 start().catch((err) => {
