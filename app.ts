@@ -33,131 +33,58 @@ const hereRouteResponse = z.object({
 })
 
 export const openweatherResponse = z.array(
-  z.union([
-    z.object({
-      name: z.string(),
-      local_names: z.object({
-        af: z.string(),
-        ar: z.string(),
-        ascii: z.string(),
-        az: z.string(),
-        bg: z.string(),
-        ca: z.string(),
-        da: z.string(),
-        de: z.string(),
-        el: z.string(),
-        en: z.string(),
-        eu: z.string(),
-        fa: z.string(),
-        feature_name: z.string(),
-        fi: z.string(),
-        fr: z.string(),
-        gl: z.string(),
-        he: z.string(),
-        hi: z.string(),
-        hr: z.string(),
-        hu: z.string(),
-        id: z.string(),
-        it: z.string(),
-        ja: z.string(),
-        la: z.string(),
-        lt: z.string(),
-        mk: z.string(),
-        nl: z.string(),
-        no: z.string(),
-        pl: z.string(),
-        pt: z.string(),
-        ro: z.string(),
-        ru: z.string(),
-        sk: z.string(),
-        sl: z.string(),
-        sr: z.string(),
-        th: z.string(),
-        tr: z.string(),
-        vi: z.string(),
-        zu: z.string()
-      }),
-      lat: z.number(),
-      lon: z.number(),
-      country: z.string()
-    }),
-    z.object({
-      name: z.string(),
-      local_names: z.object({
-        ar: z.string(),
-        ascii: z.string(),
-        bg: z.string(),
-        de: z.string(),
-        en: z.string(),
-        fa: z.string(),
-        feature_name: z.string(),
-        fi: z.string(),
-        fr: z.string(),
-        he: z.string(),
-        ja: z.string(),
-        lt: z.string(),
-        nl: z.string(),
-        pl: z.string(),
-        pt: z.string(),
-        ru: z.string(),
-        sr: z.string()
-      }),
-      lat: z.number(),
-      lon: z.number(),
-      country: z.string()
-    }),
-    z.object({
-      name: z.string(),
-      local_names: z.object({
-        ar: z.string(),
-        ascii: z.string(),
-        en: z.string(),
-        fa: z.string(),
-        feature_name: z.string(),
-        sr: z.string()
-      }),
-      lat: z.number(),
-      lon: z.number(),
-      country: z.string(),
-      state: z.string()
-    }),
-    z.object({
-      name: z.string(),
-      local_names: z.object({
-        ascii: z.string(),
-        ca: z.string(),
-        en: z.string(),
-        feature_name: z.string()
-      }),
-      lat: z.number(),
-      lon: z.number(),
-      country: z.string(),
-      state: z.string()
-    })
-  ])
+  z.object({
+    name: z.string(),
+    local_names: z.any(),
+    lat: z.number(),
+    lon: z.number(),
+    country: z.string(),
+    state: z.string()
+  })
 )
 
-async function start (): Promise<void> {
-  console.log('Starting app...')
-
-  const city = 'Osasco'
-
-  const owResponse = await axios.get(
-    `http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=1&appid=${config.openweather.apiKey}`
+async function getRoute (originCity: string, destinationCity: string): Promise<{
+  length: number
+  duration: number
+}> {
+  const ocOwResponse = await axios.get(
+    `http://api.openweathermap.org/geo/1.0/direct?q=${originCity}&limit=1&appid=${config.openweather.apiKey}`
   ).catch((err) => {
     return new Error(err)
   })
-  if (owResponse instanceof Error) {
-    throw owResponse
+  if (ocOwResponse instanceof Error) {
+    throw ocOwResponse
   }
-  const openweatherData = openweatherResponse.safeParse(owResponse.data)
-  if (!openweatherData.success) {
+  const ocOpenweatherData = openweatherResponse.safeParse(ocOwResponse.data)
+  if (!ocOpenweatherData.success) {
     throw new Error('Invalid response')
   }
-  console.log(JSON.stringify(openweatherData.data, null, 2))
-
+  // console.log(JSON.stringify(ocOpenweatherData.data, null, 2))
+  if (ocOpenweatherData.data[0].country !== 'BR') {
+    throw new Error('Invalid country')
+  }
+  const ocLat = ocOpenweatherData.data[0].lat
+  const ocLon = ocOpenweatherData.data[0].lon
+  const dcOwResponse = await axios.get(
+    `http://api.openweathermap.org/geo/1.0/direct?q=${destinationCity}&limit=1&appid=${config.openweather.apiKey}`
+  ).catch((err) => {
+    return new Error(err)
+  })
+  if (dcOwResponse instanceof Error) {
+    throw dcOwResponse
+  }
+  const dcOpenweatherData = openweatherResponse.safeParse(dcOwResponse.data)
+  if (!dcOpenweatherData.success) {
+    throw new Error('Invalid response')
+  }
+  // console.log(JSON.stringify(dcOpenweatherData.data, null, 2))
+  if (dcOpenweatherData.data[0].country !== 'BR') {
+    throw new Error('Invalid country')
+  }
+  const dcLat = dcOpenweatherData.data[0].lat
+  const dcLon = dcOpenweatherData.data[0].lon
   const hereResponse = await axios.get(
-    `https://router.hereapi.com/v8/routes?transportMode=car&origin=52.5308,13.3847&destination=52.5323,13.3789&return=summary&apikey=${config.here.apiKey}`
+    `https://router.hereapi.com/v8/routes?transportMode=car&origin=${ocLat},${ocLon}&destination=${dcLat},${dcLon}&return=summary&apikey=${config.here.apiKey}`
   ).catch((err) => {
     return new Error(err)
   })
@@ -168,7 +95,146 @@ async function start (): Promise<void> {
   if (!hereData.success) {
     throw new Error('Invalid response')
   }
-  // console.log(JSON.stringify(data.data, null, 2))
+  // console.log(JSON.stringify(hereData.data, null, 2))
+  return hereData.data.routes[0].sections[0].summary
+}
+
+async function start (): Promise<void> {
+  // console.log('Starting app...')
+  const destinationCity = 'Osasco'
+  const originCities = [
+    // 'ADAMANTINA',
+    'ALVARES MACHADO',
+    'AMERICANA',
+    'ANDRADINA',
+    'ARACATUBA',
+    'ARARAQUARA',
+    'ARUJA',
+    'ASSIS',
+    'ATIBAIA',
+    'AURIFLAMA',
+    'BARRETOS',
+    'BARUERI',
+    'BATATAIS',
+    'BAURU',
+    'BOTUCATU',
+    'CAFELANDIA',
+    'CAJAMAR',
+    'CAMPINAS',
+    'CAMPO LIMPO PAULISTA',
+    'CANDIDO MOTA',
+    'CAPAO BONITO',
+    'CARAGUATATUBA',
+    'CARAPICUIBA',
+    'CATANDUVA',
+    'COTIA',
+    'DIADEMA',
+    'DRACENA',
+    'EMBU',
+    'EMBU-GUACU',
+    "ESTRELA D'OESTE",
+    'FERNANDOPOLIS',
+    'FERRAZ DE VASCONCELOS',
+    'FLORIDA PAULISTA',
+    'FRANCA',
+    'FRANCO DA ROCHA',
+    'GUARARAPES',
+    'GUARUJA',
+    'GUARULHOS',
+    'HORTOLANDIA',
+    'ILHA SOLTEIRA',
+    'INDAIATUBA',
+    'IRAPURU',
+    'ITAJOBI',
+    'ITANHAEM',
+    'ITAPECERICA DA SERRA',
+    'ITAPETININGA',
+    'ITAPEVA',
+    'ITAPEVI',
+    'ITAQUAQUECETUBA',
+    'ITARARE',
+    'ITATIBA',
+    'ITU',
+    'ITUVERAVA',
+    'JACAREI',
+    'JALES',
+    'JANDIRA',
+
+    // 'JAU',
+    'JOSE BONIFACIO',
+    'JUNDIAI',
+    'JUNQUEIROPOLIS',
+    'LIMEIRA',
+    'LORENA',
+    'MARILIA',
+    'MARTINOPOLIS',
+    'MATAO',
+    'MAUA',
+    'MIRANDOPOLIS',
+    'MIRASSOL',
+    'MOGI DAS CRUZES',
+    'MOGI-MIRIM',
+    'MONGAGUA',
+    'MONTE APRAZIVEL',
+    'MORRO AGUDO',
+
+    // 'NOVO HORIZONTE',
+
+    // 'OLIMPIA',
+    'OSASCO',
+    'OSVALDO CRUZ',
+    'OURINHOS',
+    'PACAEMBU',
+    'PARIQUERA-ACU',
+    'PATROCINIO PAULISTA',
+    'PENAPOLIS',
+    'PEREIRA BARRETO',
+    'PERUIBE',
+    'PIRACAIA',
+    'PIRACICABA',
+    'PIRAJU',
+    'PIRAPOZINHO',
+    'POA',
+    'POTIRENDABA',
+    'PRAIA GRANDE',
+    'PRESIDENTE EPITACIO',
+    'PRESIDENTE PRUDENTE',
+    'PRESIDENTE VENCESLAU',
+    'REGENTE FEIJO',
+    'REGISTRO',
+    'RIBEIRAO PIRES',
+    'RIBEIRAO PRETO',
+    'RIO CLARO',
+    'SANTA ADELIA',
+    "SANTA BARBARA D'OESTE",
+    'SANTA CRUZ DO RIO PARDO',
+    'SANTA FE DO SUL',
+    'SANTO ANDRE',
+    'SANTOS',
+    'SAO BERNARDO DO CAMPO',
+    'SAO CAETANO DO SUL',
+    'SAO JOAQUIM DA BARRA',
+    'SAO JOSE DO RIO PRETO',
+    'SAO JOSE DOS CAMPOS',
+    'SAO PAULO',
+    'SAO VICENTE',
+    'SOROCABA',
+    'SUMARE',
+    'SUZANO',
+    'TABOAO DA SERRA',
+    'TANABI',
+    'TAUBATE',
+    'TRES FRONTEIRAS',
+    'TUPI PAULISTA',
+    'VALINHOS',
+    'VARZEA PAULISTA',
+    'VINHEDO',
+    'VIRADOURO',
+    'VOTUPORANGA']
+  for (const originCity of originCities) {
+    const route = await getRoute(originCity, destinationCity)
+    console.log(`Origem: ${originCity} - Destino: ${destinationCity} - Distancia em KM: ${route.length / 100 ?? 'Não encontrado'} - Tempo em minutos: ${route.duration / 60 ?? 'Não encontrado'}`)
+  }
 }
 
 start().catch((err) => {
