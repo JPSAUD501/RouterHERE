@@ -245,7 +245,7 @@ async function start (): Promise<void> {
 
   for (const destinationCity of destinationCities) {
     const route = await getRoute(originCity, destinationCity)
-    console.log(`Origem: ${originCity} - Destino: ${destinationCity} - Distancia em KM: ${route.length / 100 ?? 'Não encontrado'} - Tempo em minutos: ${route.duration / 60 ?? 'Não encontrado'}`)
+    console.log(`Origem: ${originCity} - Destino: ${destinationCity} - Distancia em KM: ${route.length / 1000 ?? 'Não encontrado'} - Tempo em minutos: ${route.duration / 60 ?? 'Não encontrado'}`)
     resultado.push({
       origem: originCity,
       destino: destinationCity,
